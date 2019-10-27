@@ -321,6 +321,14 @@ static struct httpd_data *httpd_create(const httpd_config_t *config)
             free(hd);
             return NULL;
         }
+        hd->err_handler_fns = calloc(HTTPD_ERR_CODE_MAX, sizeof(httpd_err_handler_func_t));
+        if (!hd->err_handler_fns) {
+            free(ra->resp_hdrs);
+            free(hd->hd_sd);
+            free(hd->hd_calls);
+            free(hd);
+            return NULL;
+        }
         /* Save the configuration for this instance */
         hd->config = *config;
     } else {
@@ -333,6 +341,7 @@ static void httpd_delete(struct httpd_data *hd)
 {
     struct httpd_req_aux *ra = &hd->hd_req_aux;
     /* Free memory of httpd instance data */
+    free(hd->err_handler_fns);
     free(ra->resp_hdrs);
     free(hd->hd_sd);
 

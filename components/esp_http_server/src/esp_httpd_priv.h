@@ -54,63 +54,6 @@ struct thread_data {
     } status;           /*!< State of the thread */
 };
 
-/**
- * @brief Error codes sent by server in case of errors
- *        encountered during processing of an HTTP request
- */
-typedef enum {
-    /* For any unexpected errors during parsing, like unexpected
-     * state transitions, or unhandled errors.
-     */
-    HTTPD_500_SERVER_ERROR = 0,
-
-    /* For methods not supported by http_parser. Presently
-     * http_parser halts parsing when such methods are
-     * encountered and so the server responds with 400 Bad
-     * Request error instead.
-     */
-    HTTPD_501_METHOD_NOT_IMPLEMENTED,
-
-    /* When HTTP version is not 1.1 */
-    HTTPD_505_VERSION_NOT_SUPPORTED,
-
-    /* Returned when http_parser halts parsing due to incorrect
-     * syntax of request, unsupported method in request URI or
-     * due to chunked encoding option present in headers
-     */
-    HTTPD_400_BAD_REQUEST,
-
-    /* When requested URI is not found */
-    HTTPD_404_NOT_FOUND,
-
-    /* When URI found, but method has no handler registered */
-    HTTPD_405_METHOD_NOT_ALLOWED,
-
-    /* Intended for recv timeout. Presently it's being sent
-     * for other recv errors as well. Client should expect the
-     * server to immediatly close the connection after
-     * responding with this.
-     */
-    HTTPD_408_REQ_TIMEOUT,
-
-    /* Intended for responding to chunked encoding, which is
-     * not supported currently. Though unhandled http_parser
-     * callback for chunked request returns "400 Bad Request"
-     */
-    HTTPD_411_LENGTH_REQUIRED,
-
-    /* URI length greater than HTTPD_MAX_URI_LEN */
-    HTTPD_414_URI_TOO_LONG,
-
-    /* Headers section larger thn HTTPD_MAX_REQ_HDR_LEN */
-    HTTPD_431_REQ_HDR_FIELDS_TOO_LARGE,
-
-    /* There is no particular HTTP error code for not supporting
-     * upgrade. For this respond with 200 OK. Client expects status
-     * code 101 if upgrade were supported, so 200 should be fine.
-     */
-    HTTPD_XXX_UPGRADE_NOT_SUPPORTED
-} httpd_err_resp_t;
 
 /**
  * @brief A database of all the open sockets in the system.
@@ -164,6 +107,9 @@ struct httpd_data {
     httpd_uri_t **hd_calls;                 /*!< Registered URI handlers */
     struct httpd_req hd_req;                /*!< The current HTTPD request */
     struct httpd_req_aux hd_req_aux;        /*!< Additional data about the HTTPD request kept unexposed */
+
+    /* Array of registered error handler functions */
+    httpd_err_handler_func_t *err_handler_fns;
 };
 
 /******************* Group : Session Management ********************/
@@ -409,6 +355,19 @@ esp_err_t httpd_req_new(struct httpd_data *hd, struct sock_db *sd);
  */
 esp_err_t httpd_req_delete(struct httpd_data *hd);
 
+/**
+ * @brief   For handling HTTP errors by invoking registered
+ *          error handler function
+ *
+ * @param[in] req     Pointer to the HTTP request for which error occurred
+ * @param[in] error   Error type
+ *
+ * @return
+ *  - ESP_OK    : error handled successful
+ *  - ESP_FAIL  : failure indicates that the underlying socket needs to be closed
+ */
+esp_err_t httpd_req_handle_err(httpd_req_t *req, httpd_err_resp_t error);
+
 /** End of Group : Parsing
  * @}
  */
@@ -419,17 +378,6 @@ esp_err_t httpd_req_delete(struct httpd_data *hd);
  * @{
  */
 
-/**
- * @brief   For sending out error code in response to HTTP request.
- *
- * @param[in] req     Pointer to the HTTP request for which the resonse needs to be sent
- * @param[in] error   Error type to send
- *
- * @return
- *  - ESP_OK    : if successful
- *  - ESP_FAIL  : if failed
- */
-esp_err_t httpd_resp_send_err(httpd_req_t *req, httpd_err_resp_t error);
 
 /**
  * @brief   For sending out data in response to an HTTP request.
