@@ -397,7 +397,7 @@ static int read_block(httpd_req_t *req, size_t offset, size_t length)
     if (nbytes < 0) {
         ESP_LOGD(TAG, LOG_FMT("error in httpd_recv"));
         if (nbytes == HTTPD_SOCK_ERR_TIMEOUT) {
-            httpd_resp_send_err(req, HTTPD_408_REQ_TIMEOUT);
+            httpd_req_handle_err(req, HTTPD_408_REQ_TIMEOUT);
         }
         return -1;
     } else if (nbytes == 0) {
@@ -519,7 +519,7 @@ static esp_err_t httpd_parse_req(struct httpd_data *hd)
         /* Parse data block from buffer */
         if ((offset = parse_block(&parser, offset, blk_len)) < 0) {
             /* Server/Client error. Send error code as response status */
-            return httpd_resp_send_err(r, parser_data.error);
+            return httpd_req_handle_err(r, parser_data.error);
         }
     } while (parser_data.status != PARSING_COMPLETE);
 

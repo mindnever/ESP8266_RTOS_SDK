@@ -449,6 +449,41 @@ esp_err_t httpd_resp_send_err(httpd_req_t *req, httpd_err_resp_t error)
     return httpd_resp_send  (req, msg, strlen(msg));
 }
 
+esp_err_t httpd_register_err_handler(httpd_handle_t handle,
+                                     httpd_err_resp_t error,
+                                     httpd_err_handler_func_t err_handler_fn)
+{
+    if (handle == NULL || error >= HTTPD_ERR_CODE_MAX) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    struct httpd_data *hd = (struct httpd_data *) handle;
+    hd->err_handler_fns[error] = err_handler_fn;
+    return ESP_OK;
+}
+
+esp_err_t httpd_req_handle_err(httpd_req_t *req, httpd_err_resp_t error)
+{
+    struct httpd_data *hd = (struct httpd_data *) req->handle;
+    esp_err_t ret;
+
+    /* Invoke custom error handler if configured */
+    if (hd->err_handler_fns[error]) {
+        ret = hd->err_handler_fns[error](req, error);
+
+        /* If error code is 500, force return failure
+         * irrespective of the handler's return value */
+        ret = (error == HTTPD_500_SERVER_ERROR ? ESP_FAIL : ret);
+    } else {
+        /* If no handler is registered for this error default
+         * behavior is to send the HTTP error response and
+         * return failure for closure of underlying socket */
+        httpd_resp_send_err(req, error);
+        ret = ESP_FAIL;
+    }
+    return ret;
+}
+
 int httpd_req_recv(httpd_req_t *r, char *buf, size_t buf_len)
 {
     if (r == NULL || buf == NULL) {

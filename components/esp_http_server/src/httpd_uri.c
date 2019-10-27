@@ -202,10 +202,10 @@ esp_err_t httpd_uri(struct httpd_data *hd)
         switch (err) {
             case HTTPD_404_NOT_FOUND:
                 ESP_LOGW(TAG, LOG_FMT("URI '%s' not found"), req->uri);
-                return httpd_resp_send_err(req, HTTPD_404_NOT_FOUND);
+                return httpd_req_handle_err(req, HTTPD_404_NOT_FOUND);
             case HTTPD_405_METHOD_NOT_ALLOWED:
                 ESP_LOGW(TAG, LOG_FMT("Method '%d' not allowed for URI '%s'"), req->method, req->uri);
-                return httpd_resp_send_err(req, HTTPD_405_METHOD_NOT_ALLOWED);
+                return httpd_req_handle_err(req, HTTPD_405_METHOD_NOT_ALLOWED);
             default:
                 return ESP_FAIL;
         }
