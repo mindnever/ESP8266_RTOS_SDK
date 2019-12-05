@@ -73,6 +73,7 @@ struct esp_mqtt_client {
 };
 
 const static int STOPPED_BIT = BIT0;
+const static int STOPPING_BIT = BIT1;
 
 static esp_err_t esp_mqtt_dispatch_event(esp_mqtt_client_handle_t client);
 static esp_err_t esp_mqtt_set_config(esp_mqtt_client_handle_t client, const esp_mqtt_client_config_t *config);
@@ -753,7 +754,7 @@ static void esp_mqtt_task(void *pv)
                     client->reconnect_tick = platform_tick_get_ms();
                     ESP_LOGD(TAG, "Reconnecting...");
                 }
-                vTaskDelay(client->wait_timeout_ms / 2 / portTICK_RATE_MS);
+                xEventGroupWaitBits(client->status_bits, STOPPING_BIT, false, true, client->wait_timeout_ms / 2 / portTICK_RATE_MS);
                 break;
         }
     }
@@ -789,6 +790,7 @@ esp_err_t esp_mqtt_client_stop(esp_mqtt_client_handle_t client)
 {
     if (client->run) {
         client->run = false;
+        xEventGroupSetBits(client->status_bits, STOPPING_BIT);
         xEventGroupWaitBits(client->status_bits, STOPPED_BIT, false, true, portMAX_DELAY);
         client->state = MQTT_STATE_UNKNOWN;
         return ESP_OK;
